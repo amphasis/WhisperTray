@@ -1,6 +1,6 @@
-using System.Windows;
 using System.Windows.Threading;
 using WhisperTray.Core.Injection;
+using WpfClipboard = System.Windows.Clipboard;
 
 namespace WhisperTray.App.Adapters;
 
@@ -15,11 +15,11 @@ public sealed class WpfClipboardService : IClipboardService
     }
 
     public string? GetText() =>
-        _dispatcher.Invoke(() => Clipboard.ContainsText() ? Clipboard.GetText() : null);
+        _dispatcher.Invoke(() => WpfClipboard.ContainsText() ? WpfClipboard.GetText() : null);
 
     public void SetText(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        _dispatcher.Invoke(() => Clipboard.SetDataObject(text, copy: true));
+        _dispatcher.Invoke(() => WpfClipboard.SetDataObject(text, copy: true));
     }
 }
