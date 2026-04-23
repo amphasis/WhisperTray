@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Concentus" Version="2.2.2" />
+    <PackageReference Include="Concentus.OggFile" Version="1.0.7" />
+  </ItemGroup>
+
 </Project>
