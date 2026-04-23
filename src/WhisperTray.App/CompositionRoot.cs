@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Windows;
@@ -27,6 +28,7 @@ public sealed class CompositionRoot : IDisposable
     private readonly TrayAppHost _tray;
     private readonly Orchestrator _orchestrator;
     private readonly ISettingsStore _settingsStore;
+    private readonly IAutostartService _autostart;
     private Settings _currentSettings;
 
     public CompositionRoot(Dispatcher dispatcher)
@@ -45,6 +47,8 @@ public sealed class CompositionRoot : IDisposable
         var protector = new DpapiSecretProtector();
         _settingsStore = new JsonFileSettingsStore(settingsPath, protector);
         _currentSettings = _settingsStore.Load();
+
+        _autostart = new RegistryAutostartService(new HkcuRunRegistryKey());
 
         _recorder = new NAudioRecorder();
         var encoderFactory = new DefaultAudioEncoderFactory();
@@ -91,11 +95,44 @@ public sealed class CompositionRoot : IDisposable
             _tray.NotifyWarning("Invalid hotkey", hotkeyError ?? "Hotkey could not be parsed.");
         }
 
+        // Keep the Run-key entry in sync with the saved Autostart preference. This also
+        // self-heals: if the exe was moved between sessions, the next startup rewrites
+        // the entry with the current path.
+        SyncAutostart(_currentSettings.Autostart);
+
         if (string.IsNullOrWhiteSpace(_currentSettings.ApiKey))
         {
             _tray.NotifyInfo(
                 "Configure API key",
                 "Right-click the tray icon and open Settings to finish setup.");
+        }
+    }
+
+    private void SyncAutostart(bool enabled)
+    {
+        try
+        {
+            if (enabled)
+            {
+                var exePath = Environment.ProcessPath
+                    ?? Process.GetCurrentProcess().MainModule?.FileName;
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    _tray.NotifyWarning(
+                        "Autostart unavailable",
+                        "Could not determine the WhisperTray executable path.");
+                    return;
+                }
+                _autostart.Enable(exePath);
+            }
+            else
+            {
+                _autostart.Disable();
+            }
+        }
+        catch (Exception ex)
+        {
+            _tray.NotifyError("Autostart update failed", ex.Message);
         }
     }
 
@@ -150,7 +187,13 @@ public sealed class CompositionRoot : IDisposable
             return;
         }
 
+        var previousAutostart = _currentSettings.Autostart;
         _currentSettings = updated;
+
+        if (updated.Autostart != previousAutostart)
+        {
+            SyncAutostart(updated.Autostart);
+        }
 
         // Hotkey may have changed — re-register. Even when unchanged, re-registering is
         // harmless and keeps the code path simple.
