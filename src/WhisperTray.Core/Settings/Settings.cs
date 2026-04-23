@@ -2,7 +2,7 @@ namespace WhisperTray.Core.Configuration;
 
 public sealed record Settings
 {
-    public string Hotkey { get; init; } = "Ctrl+Alt+Space";
+    public string Hotkey { get; init; } = "Win+Z";
     public bool Autostart { get; init; }
     public string? AudioDeviceId { get; init; }
     public TranscriptionProvider Provider { get; init; } = TranscriptionProvider.OpenAi;
