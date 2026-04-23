@@ -46,8 +46,9 @@ public sealed class SendInputTextTypist : ITextTypist
         var sent = SendInput((uint)inputs.Length, inputs, InputSize);
         if (sent != (uint)inputs.Length)
         {
-            throw new Win32Exception(Marshal.GetLastWin32Error(),
-                $"SendInput dispatched {sent}/{inputs.Length} events.");
+            var code = Marshal.GetLastWin32Error();
+            throw new Win32Exception(code,
+                $"SendInput dispatched {sent}/{inputs.Length} events (cbSize={InputSize}, lastError=0x{code:X}).");
         }
     }
 
