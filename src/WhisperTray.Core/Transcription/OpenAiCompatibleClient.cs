@@ -35,10 +35,9 @@ public sealed class OpenAiCompatibleClient : ITranscriptionClient
         ArgumentNullException.ThrowIfNull(request);
 
         using var form = BuildForm(request);
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, _endpoint)
-        {
-            Content = form,
-        };
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, _endpoint);
+
+        httpRequest.Content = form;
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
 
         HttpResponseMessage response;
@@ -58,13 +57,7 @@ public sealed class OpenAiCompatibleClient : ITranscriptionClient
         using (response)
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw BuildException(response.StatusCode, body);
-            }
-
-            return ParseResponse(body);
+            return response.IsSuccessStatusCode ? ParseResponse(body) : throw BuildException(response.StatusCode, body);
         }
     }
 
