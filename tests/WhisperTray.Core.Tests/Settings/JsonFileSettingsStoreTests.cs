@@ -1,5 +1,6 @@
 using FluentAssertions;
 using WhisperTray.Core.Configuration;
+using WhisperTray.Core.Tests.TestInfrastructure;
 
 namespace WhisperTray.Core.Tests;
 
@@ -67,9 +68,8 @@ public class JsonFileSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public void Save_WritesApiKeyAsPlaintextForNow()
+    public void Save_WithoutProtector_WritesApiKeyAsPlaintext()
     {
-        // Interim: key is stored as plaintext until Phase 9 rewires ISecretProtector.
         var settings = Settings.Default with { ApiKey = "sk-plaintext-secret" };
         var store = new JsonFileSettingsStore(_path);
 
@@ -78,7 +78,65 @@ public class JsonFileSettingsStoreTests : IDisposable
 
         rawJson.Should().Contain("sk-plaintext-secret");
         rawJson.Should().Contain("\"apiKey\"");
-        rawJson.Should().NotContain("apiKeyEncrypted");
+        rawJson.Should().NotContain("apiKeyProtected");
+    }
+
+    [Fact]
+    public void Save_WithProtector_WritesApiKeyProtectedAndOmitsPlaintext()
+    {
+        var settings = Settings.Default with { ApiKey = "sk-my-secret" };
+        var store = new JsonFileSettingsStore(_path, new PassthroughSecretProtector());
+
+        store.Save(settings);
+        var rawJson = File.ReadAllText(_path);
+
+        rawJson.Should().Contain("\"apiKeyProtected\"");
+        rawJson.Should().NotContain("\"apiKey\":");
+        rawJson.Should().NotContain("sk-my-secret");
+    }
+
+    [Fact]
+    public void SaveThenLoad_WithProtector_RoundTripsApiKey()
+    {
+        var protector = new PassthroughSecretProtector();
+        var settings = Settings.Default with { ApiKey = "sk-round-trip" };
+        var store = new JsonFileSettingsStore(_path, protector);
+
+        store.Save(settings);
+        var loaded = store.Load();
+
+        loaded.ApiKey.Should().Be("sk-round-trip");
+    }
+
+    [Fact]
+    public void Load_PlaintextApiKey_WithProtector_IsMigratedOnNextSave()
+    {
+        Directory.CreateDirectory(_tempDir);
+        File.WriteAllText(_path, """{"apiKey": "sk-legacy-plaintext"}""");
+        var store = new JsonFileSettingsStore(_path, new PassthroughSecretProtector());
+
+        // First load sees the legacy plaintext key.
+        var loaded = store.Load();
+        loaded.ApiKey.Should().Be("sk-legacy-plaintext");
+
+        // After an explicit Save the plaintext form disappears from disk.
+        store.Save(loaded);
+        var rawJson = File.ReadAllText(_path);
+
+        rawJson.Should().Contain("\"apiKeyProtected\"");
+        rawJson.Should().NotContain("sk-legacy-plaintext");
+    }
+
+    [Fact]
+    public void Load_UnprotectFailure_FallsBackToPlaintextApiKey()
+    {
+        Directory.CreateDirectory(_tempDir);
+        File.WriteAllText(_path, """{"apiKey": "sk-fallback", "apiKeyProtected": "!!!not-base64!!!"}""");
+        var store = new JsonFileSettingsStore(_path, new PassthroughSecretProtector());
+
+        // Protector's Unprotect returns null on bad input; we fall back to plaintext so
+        // the user can keep using the app even after a corrupted profile move.
+        store.Load().ApiKey.Should().Be("sk-fallback");
     }
 
     [Fact]

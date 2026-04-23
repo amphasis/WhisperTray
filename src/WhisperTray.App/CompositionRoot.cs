@@ -40,9 +40,11 @@ public sealed class CompositionRoot : IDisposable
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "WhisperTray",
             "settings.json");
-        // ApiKey is stored as plaintext for now; DpapiSecretProtector stays in
-        // the codebase and will be wired back once Phase 9 can drive migration.
-        _settingsStore = new JsonFileSettingsStore(settingsPath);
+        // DPAPI-backed per-user encryption is active from Phase 9 onward. The store
+        // transparently migrates any pre-existing plaintext apiKey on the first Save
+        // driven by the Settings window.
+        var protector = new DpapiSecretProtector();
+        _settingsStore = new JsonFileSettingsStore(settingsPath, protector);
         _currentSettings = _settingsStore.Load();
 
         _recorder = new NAudioRecorder();

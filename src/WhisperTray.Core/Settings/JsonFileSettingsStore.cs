@@ -3,6 +3,13 @@ using System.Text.Json.Serialization;
 
 namespace WhisperTray.Core.Configuration;
 
+/// <summary>
+/// Persists <see cref="Settings"/> to a JSON file under %APPDATA%.
+/// If an <see cref="ISecretProtector"/> is supplied the <c>ApiKey</c> is
+/// round-tripped through it and serialised as <c>apiKeyProtected</c>. Files
+/// that still hold a plaintext <c>apiKey</c> (the MVP boot state) are picked
+/// up on Load and automatically migrated on the next Save.
+/// </summary>
 public sealed class JsonFileSettingsStore : ISettingsStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -14,16 +21,14 @@ public sealed class JsonFileSettingsStore : ISettingsStore
     };
 
     private readonly string _path;
+    private readonly ISecretProtector? _protector;
 
-    public JsonFileSettingsStore(string path)
+    public JsonFileSettingsStore(string path, ISecretProtector? protector = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         _path = path;
+        _protector = protector;
     }
-
-    // NOTE: the API key is currently persisted in plaintext. ISecretProtector /
-    // DpapiSecretProtector stay in the codebase and will be re-wired here once
-    // the Settings window (Phase 9) can drive the save/migrate flow properly.
 
     public Settings Load()
     {
@@ -72,7 +77,7 @@ public sealed class JsonFileSettingsStore : ISettingsStore
         File.WriteAllText(_path, json);
     }
 
-    private static Settings FromPersisted(PersistedSettings p) => new()
+    private Settings FromPersisted(PersistedSettings p) => new()
     {
         Hotkey = p.Hotkey ?? Settings.Default.Hotkey,
         Autostart = p.Autostart ?? Settings.Default.Autostart,
@@ -80,27 +85,58 @@ public sealed class JsonFileSettingsStore : ISettingsStore
         Provider = p.Provider ?? Settings.Default.Provider,
         BaseUrl = p.BaseUrl ?? Settings.Default.BaseUrl,
         Model = p.Model ?? Settings.Default.Model,
-        ApiKey = p.ApiKey,
+        ApiKey = ResolveApiKey(p),
         Language = p.Language,
         PromptHint = p.PromptHint ?? Settings.Default.PromptHint,
         AudioFormat = p.AudioFormat ?? Settings.Default.AudioFormat,
         InjectionMode = p.InjectionMode ?? Settings.Default.InjectionMode,
     };
 
-    private static PersistedSettings ToPersisted(Settings s) => new()
+    private string? ResolveApiKey(PersistedSettings p)
     {
-        Hotkey = s.Hotkey,
-        Autostart = s.Autostart,
-        AudioDeviceId = s.AudioDeviceId,
-        Provider = s.Provider,
-        BaseUrl = s.BaseUrl,
-        Model = s.Model,
-        ApiKey = s.ApiKey,
-        Language = s.Language,
-        PromptHint = s.PromptHint,
-        AudioFormat = s.AudioFormat,
-        InjectionMode = s.InjectionMode,
-    };
+        // Prefer an encrypted blob when we have a protector and the file is already migrated.
+        if (_protector is not null && !string.IsNullOrEmpty(p.ApiKeyProtected))
+        {
+            var unprotected = _protector.Unprotect(p.ApiKeyProtected);
+            if (unprotected is not null)
+            {
+                return unprotected;
+            }
+            // Unprotect failed (tampered / copied profile) — fall through to plaintext so the
+            // user can at least start the app and re-enter the key via Settings window.
+        }
+        return p.ApiKey;
+    }
+
+    private PersistedSettings ToPersisted(Settings s)
+    {
+        var persisted = new PersistedSettings
+        {
+            Hotkey = s.Hotkey,
+            Autostart = s.Autostart,
+            AudioDeviceId = s.AudioDeviceId,
+            Provider = s.Provider,
+            BaseUrl = s.BaseUrl,
+            Model = s.Model,
+            Language = s.Language,
+            PromptHint = s.PromptHint,
+            AudioFormat = s.AudioFormat,
+            InjectionMode = s.InjectionMode,
+        };
+
+        if (string.IsNullOrEmpty(s.ApiKey))
+        {
+            return persisted;
+        }
+
+        if (_protector is not null)
+        {
+            // Migrated / already-encrypted form: only apiKeyProtected is written.
+            return persisted with { ApiKeyProtected = _protector.Protect(s.ApiKey) };
+        }
+
+        return persisted with { ApiKey = s.ApiKey };
+    }
 
     private sealed record PersistedSettings
     {
@@ -111,6 +147,7 @@ public sealed class JsonFileSettingsStore : ISettingsStore
         public string? BaseUrl { get; init; }
         public string? Model { get; init; }
         public string? ApiKey { get; init; }
+        public string? ApiKeyProtected { get; init; }
         public string? Language { get; init; }
         public string? PromptHint { get; init; }
         public AudioFormat? AudioFormat { get; init; }
