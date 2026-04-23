@@ -1,0 +1,29 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.pdb
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+## Publish output
+publish/
+*.exe
+*.dll
+
+## Rider / VS Code
+.idea/
+.vscode/
+
+## OS
+Thumbs.db
+.DS_Store
+
+## Local settings (may contain secrets)
+appsettings.Local.json
+settings.local.json
+*.log
