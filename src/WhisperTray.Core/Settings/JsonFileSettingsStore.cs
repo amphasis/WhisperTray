@@ -14,15 +14,16 @@ public sealed class JsonFileSettingsStore : ISettingsStore
     };
 
     private readonly string _path;
-    private readonly ISecretProtector _protector;
 
-    public JsonFileSettingsStore(string path, ISecretProtector protector)
+    public JsonFileSettingsStore(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        ArgumentNullException.ThrowIfNull(protector);
         _path = path;
-        _protector = protector;
     }
+
+    // NOTE: the API key is currently persisted in plaintext. ISecretProtector /
+    // DpapiSecretProtector stay in the codebase and will be re-wired here once
+    // the Settings window (Phase 9) can drive the save/migrate flow properly.
 
     public Settings Load()
     {
@@ -71,53 +72,35 @@ public sealed class JsonFileSettingsStore : ISettingsStore
         File.WriteAllText(_path, json);
     }
 
-    private Settings FromPersisted(PersistedSettings p)
+    private static Settings FromPersisted(PersistedSettings p) => new()
     {
-        string? apiKey = null;
-        if (!string.IsNullOrEmpty(p.ApiKeyEncrypted))
-        {
-            apiKey = _protector.Unprotect(p.ApiKeyEncrypted);
-        }
+        Hotkey = p.Hotkey ?? Settings.Default.Hotkey,
+        Autostart = p.Autostart ?? Settings.Default.Autostart,
+        AudioDeviceId = p.AudioDeviceId,
+        Provider = p.Provider ?? Settings.Default.Provider,
+        BaseUrl = p.BaseUrl ?? Settings.Default.BaseUrl,
+        Model = p.Model ?? Settings.Default.Model,
+        ApiKey = p.ApiKey,
+        Language = p.Language,
+        PromptHint = p.PromptHint ?? Settings.Default.PromptHint,
+        AudioFormat = p.AudioFormat ?? Settings.Default.AudioFormat,
+        InjectionMode = p.InjectionMode ?? Settings.Default.InjectionMode,
+    };
 
-        return new Settings
-        {
-            Hotkey = p.Hotkey ?? Settings.Default.Hotkey,
-            Autostart = p.Autostart ?? Settings.Default.Autostart,
-            AudioDeviceId = p.AudioDeviceId,
-            Provider = p.Provider ?? Settings.Default.Provider,
-            BaseUrl = p.BaseUrl ?? Settings.Default.BaseUrl,
-            Model = p.Model ?? Settings.Default.Model,
-            ApiKey = apiKey,
-            Language = p.Language,
-            PromptHint = p.PromptHint ?? Settings.Default.PromptHint,
-            AudioFormat = p.AudioFormat ?? Settings.Default.AudioFormat,
-            InjectionMode = p.InjectionMode ?? Settings.Default.InjectionMode,
-        };
-    }
-
-    private PersistedSettings ToPersisted(Settings s)
+    private static PersistedSettings ToPersisted(Settings s) => new()
     {
-        string? apiKeyEncrypted = null;
-        if (!string.IsNullOrEmpty(s.ApiKey))
-        {
-            apiKeyEncrypted = _protector.Protect(s.ApiKey);
-        }
-
-        return new PersistedSettings
-        {
-            Hotkey = s.Hotkey,
-            Autostart = s.Autostart,
-            AudioDeviceId = s.AudioDeviceId,
-            Provider = s.Provider,
-            BaseUrl = s.BaseUrl,
-            Model = s.Model,
-            ApiKeyEncrypted = apiKeyEncrypted,
-            Language = s.Language,
-            PromptHint = s.PromptHint,
-            AudioFormat = s.AudioFormat,
-            InjectionMode = s.InjectionMode,
-        };
-    }
+        Hotkey = s.Hotkey,
+        Autostart = s.Autostart,
+        AudioDeviceId = s.AudioDeviceId,
+        Provider = s.Provider,
+        BaseUrl = s.BaseUrl,
+        Model = s.Model,
+        ApiKey = s.ApiKey,
+        Language = s.Language,
+        PromptHint = s.PromptHint,
+        AudioFormat = s.AudioFormat,
+        InjectionMode = s.InjectionMode,
+    };
 
     private sealed record PersistedSettings
     {
@@ -127,7 +110,7 @@ public sealed class JsonFileSettingsStore : ISettingsStore
         public TranscriptionProvider? Provider { get; init; }
         public string? BaseUrl { get; init; }
         public string? Model { get; init; }
-        public string? ApiKeyEncrypted { get; init; }
+        public string? ApiKey { get; init; }
         public string? Language { get; init; }
         public string? PromptHint { get; init; }
         public AudioFormat? AudioFormat { get; init; }

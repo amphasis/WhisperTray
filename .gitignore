@@ -23,7 +23,8 @@ publish/
 Thumbs.db
 .DS_Store
 
-## Local settings (may contain secrets)
+## Local settings (may contain secrets — API keys are currently plaintext)
 appsettings.Local.json
+settings.json
 settings.local.json
 *.log
