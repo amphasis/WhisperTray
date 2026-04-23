@@ -1,5 +1,6 @@
 using FluentAssertions;
 using WhisperTray.Core.Configuration;
+using WhisperTray.Core.Tests.TestInfrastructure;
 
 namespace WhisperTray.Core.Tests;
 

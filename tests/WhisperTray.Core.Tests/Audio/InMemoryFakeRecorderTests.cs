@@ -1,5 +1,6 @@
 using FluentAssertions;
 using WhisperTray.Core.Audio;
+using WhisperTray.Core.Tests.TestInfrastructure;
 
 namespace WhisperTray.Core.Tests.Audio;
 

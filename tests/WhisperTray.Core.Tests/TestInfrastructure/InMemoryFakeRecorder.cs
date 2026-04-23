@@ -1,6 +1,8 @@
-namespace WhisperTray.Core.Audio;
+using WhisperTray.Core.Audio;
 
-/// <summary>Deterministic test double — returns a preloaded RecordedAudio on Stop.</summary>
+namespace WhisperTray.Core.Tests.TestInfrastructure;
+
+/// <summary>Test-only IAudioRecorder — returns a preloaded RecordedAudio on Stop.</summary>
 public sealed class InMemoryFakeRecorder : IAudioRecorder
 {
     private readonly RecordedAudio _audioToReturn;

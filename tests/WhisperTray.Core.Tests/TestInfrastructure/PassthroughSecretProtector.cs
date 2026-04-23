@@ -1,8 +1,9 @@
 using System.Text;
+using WhisperTray.Core.Configuration;
 
-namespace WhisperTray.Core.Configuration;
+namespace WhisperTray.Core.Tests.TestInfrastructure;
 
-/// <summary>Test/placeholder protector — base64-encodes plaintext without real encryption.</summary>
+/// <summary>Test-only ISecretProtector — base64-encodes plaintext without real encryption.</summary>
 public sealed class PassthroughSecretProtector : ISecretProtector
 {
     public string Protect(string plaintext)
