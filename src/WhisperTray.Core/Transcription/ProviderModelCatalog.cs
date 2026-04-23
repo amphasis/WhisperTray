@@ -22,6 +22,16 @@ public static class ProviderModelCatalog
                 "openai/whisper-large-v3",
                 "openai/whisper-large-v3-turbo",
             },
+            [TranscriptionProvider.WhisperApi] = new[]
+            {
+                "tiny",
+                "base",
+                "small",
+                "medium",
+                "large-v1",
+                "large-v2",
+                "large-v3",
+            },
         };
 
     public static IReadOnlyList<string> ModelsFor(TranscriptionProvider provider) =>

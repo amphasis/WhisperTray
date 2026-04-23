@@ -26,6 +26,13 @@ public sealed class HttpTranscriptionClientFactory : ITranscriptionClientFactory
         {
             throw new InvalidOperationException("API key is not configured.");
         }
-        return new OpenAiCompatibleClient(_http, settings.BaseUrl, settings.ApiKey);
+
+        return settings.Provider switch
+        {
+            TranscriptionProvider.WhisperApi =>
+                new WhisperApiClient(_http, settings.BaseUrl, settings.ApiKey),
+            _ =>
+                new OpenAiCompatibleClient(_http, settings.BaseUrl, settings.ApiKey),
+        };
     }
 }
