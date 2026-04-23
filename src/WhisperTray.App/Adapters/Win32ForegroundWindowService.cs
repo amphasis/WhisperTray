@@ -93,13 +93,27 @@ public sealed class Win32ForegroundWindowService : IForegroundWindowService
 
                 // TOKEN_MANDATORY_LABEL -> SID_AND_ATTRIBUTES -> Sid pointer at offset 0.
                 var sid = Marshal.ReadIntPtr(buffer);
-                var count = GetSidSubAuthorityCount(sid);
+                if (sid == nint.Zero)
+                {
+                    return null;
+                }
+
+                var countPtr = GetSidSubAuthorityCount(sid);
+                if (countPtr == nint.Zero)
+                {
+                    return null;
+                }
+                int count = Marshal.ReadByte(countPtr);
                 if (count <= 0)
                 {
                     return null;
                 }
 
                 var subPtr = GetSidSubAuthority(sid, (uint)(count - 1));
+                if (subPtr == nint.Zero)
+                {
+                    return null;
+                }
                 var level = (uint)Marshal.ReadInt32(subPtr);
                 return level;
             }

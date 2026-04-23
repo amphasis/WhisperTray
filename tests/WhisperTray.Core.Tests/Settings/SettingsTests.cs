@@ -10,7 +10,7 @@ public class SettingsTests
     {
         var defaults = Settings.Default;
 
-        defaults.Hotkey.Should().Be("Ctrl+Alt+Space");
+        defaults.Hotkey.Should().Be("Win+Z");
         defaults.Autostart.Should().BeFalse();
         defaults.Provider.Should().Be(TranscriptionProvider.OpenAi);
         defaults.BaseUrl.Should().Be("https://api.openai.com/v1");

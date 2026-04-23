@@ -76,9 +76,11 @@ internal static class NativeMethods
         uint tokenInformationLength,
         out uint returnLength);
 
+    // Returns PUCHAR (pointer to a single byte) — must be dereferenced.
     [DllImport("advapi32.dll", SetLastError = true)]
-    public static extern int GetSidSubAuthorityCount(nint sid);
+    public static extern nint GetSidSubAuthorityCount(nint sid);
 
+    // Returns PDWORD (pointer to a 32-bit authority value) — must be dereferenced.
     [DllImport("advapi32.dll", SetLastError = true)]
     public static extern nint GetSidSubAuthority(nint sid, uint nSubAuthority);
 
