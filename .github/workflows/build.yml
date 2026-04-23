@@ -21,6 +21,9 @@ jobs:
       - name: Restore
         run: dotnet restore WhisperTray.sln
 
+      - name: Verify formatting
+        run: dotnet format WhisperTray.sln --verify-no-changes --no-restore
+
       - name: Build
         run: dotnet build WhisperTray.sln --configuration Release --no-restore
 
