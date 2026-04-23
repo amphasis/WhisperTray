@@ -1,16 +1,15 @@
 using System.IO;
 using System.Net.Http;
+using System.Windows;
 using System.Windows.Threading;
 using WhisperTray.App.Adapters;
 using WhisperTray.App.Tray;
+using WhisperTray.App.Views;
 using WhisperTray.Core.Configuration;
 using WhisperTray.Core.Hotkeys;
 using WhisperTray.Core.Injection;
 using WhisperTray.Core.Orchestration;
 using WpfApplication = System.Windows.Application;
-using WpfMessageBox = System.Windows.MessageBox;
-using WpfMessageBoxButton = System.Windows.MessageBoxButton;
-using WpfMessageBoxImage = System.Windows.MessageBoxImage;
 
 namespace WhisperTray.App;
 
@@ -28,7 +27,7 @@ public sealed class CompositionRoot : IDisposable
     private readonly TrayAppHost _tray;
     private readonly Orchestrator _orchestrator;
     private readonly ISettingsStore _settingsStore;
-    private readonly Settings _currentSettings;
+    private Settings _currentSettings;
 
     public CompositionRoot(Dispatcher dispatcher)
     {
@@ -123,11 +122,58 @@ public sealed class CompositionRoot : IDisposable
 
     private void OnSettingsRequested(object? sender, EventArgs e)
     {
-        // Phase 9 will replace this with a real settings window.
-        WpfMessageBox.Show(
-            "Settings UI ships in Phase 9. Edit %APPDATA%\\WhisperTray\\settings.json manually for now.",
-            "WhisperTray",
-            WpfMessageBoxButton.OK,
-            WpfMessageBoxImage.Information);
+        var window = new SettingsWindow(_currentSettings)
+        {
+            Owner = WpfApplication.Current?.Windows.OfType<Window>().FirstOrDefault(w => w.IsVisible),
+        };
+
+        var confirmed = window.ShowDialog();
+        if (confirmed != true || window.SavedSettings is null)
+        {
+            return;
+        }
+
+        ApplySavedSettings(window.SavedSettings);
+    }
+
+    private void ApplySavedSettings(Settings updated)
+    {
+        var previousHotkey = _currentSettings.Hotkey;
+
+        try
+        {
+            _settingsStore.Save(updated);
+        }
+        catch (Exception ex)
+        {
+            _tray.NotifyError("Settings not saved", ex.Message);
+            return;
+        }
+
+        _currentSettings = updated;
+
+        // Hotkey may have changed — re-register. Even when unchanged, re-registering is
+        // harmless and keeps the code path simple.
+        if (!string.Equals(previousHotkey, updated.Hotkey, StringComparison.Ordinal))
+        {
+            if (HotkeyCombo.TryParse(updated.Hotkey, out var combo, out var parseError) && combo is not null)
+            {
+                try
+                {
+                    _hotkey.Unregister();
+                    _hotkey.Register(combo);
+                }
+                catch (Exception ex)
+                {
+                    _tray.NotifyError("Hotkey registration failed", ex.Message);
+                }
+            }
+            else
+            {
+                _tray.NotifyWarning("Invalid hotkey", parseError ?? "Hotkey could not be parsed.");
+            }
+        }
+
+        _tray.NotifyInfo("Settings saved", "New preferences take effect immediately.");
     }
 }
