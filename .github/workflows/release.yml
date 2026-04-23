@@ -1,0 +1,57 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore WhisperTray.sln
+
+      - name: Test
+        run: dotnet test WhisperTray.sln --configuration Release --verbosity normal
+
+      - name: Publish single-file (framework-dependent, win-x64)
+        run: >
+          dotnet publish src/WhisperTray.App/WhisperTray.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --output publish
+          -p:PublishSingleFile=true
+
+      - name: Stage artefacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Copy-Item publish/WhisperTray.exe artifacts/WhisperTray.exe
+          Copy-Item README.md artifacts/README.md
+          Copy-Item CHANGELOG.md artifacts/CHANGELOG.md -ErrorAction SilentlyContinue
+          Compress-Archive -Path artifacts/* -DestinationPath WhisperTray-${{ github.ref_name }}-win-x64.zip -Force
+
+      - name: Upload workflow artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhisperTray-${{ github.ref_name }}-win-x64
+          path: WhisperTray-${{ github.ref_name }}-win-x64.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: WhisperTray-${{ github.ref_name }}-win-x64.zip
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true

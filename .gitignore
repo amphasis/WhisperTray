@@ -12,6 +12,8 @@ coverage/
 
 ## Publish output
 publish/
+publish_test/
+artifacts/
 *.exe
 *.dll
 

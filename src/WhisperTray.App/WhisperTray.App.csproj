@@ -16,6 +16,18 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>WhisperTray</AssemblyName>
+    <RootNamespace>WhisperTray.App</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Single-file publish defaults. Activated by `dotnet publish -p:PublishSingleFile=true`.
+       Framework-dependent: requires the .NET 8 Desktop Runtime on the target machine but
+       keeps the produced .exe small. NETSDK1176 blocks compression for framework-dependent
+       single-file, so we skip it. -->
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <SelfContained>false</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
 </Project>
