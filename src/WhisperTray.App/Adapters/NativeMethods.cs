@@ -152,4 +152,12 @@ internal static class NativeMethods
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern nint GetModuleHandle(string? lpModuleName);
+
+    // ---- GDI: icon handles ----
+
+    // Bitmap.GetHicon() returns an hIcon owned by the caller. Icon.FromHandle does NOT
+    // take ownership, so we must DestroyIcon ourselves once the Icon is disposed.
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DestroyIcon(nint hIcon);
 }

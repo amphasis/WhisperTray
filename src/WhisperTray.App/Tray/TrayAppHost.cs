@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Windows.Threading;
 using WhisperTray.Core.Orchestration;
 using WinFormsContextMenu = System.Windows.Forms.ContextMenuStrip;
@@ -17,16 +16,18 @@ public sealed class TrayAppHost : INotificationService, IDisposable
 {
     private readonly Dispatcher _dispatcher;
     private readonly WinFormsNotifyIcon _icon;
+    private readonly TrayIconSet _iconSet;
     private bool _disposed;
 
     public TrayAppHost(Dispatcher dispatcher)
     {
         ArgumentNullException.ThrowIfNull(dispatcher);
         _dispatcher = dispatcher;
+        _iconSet = new TrayIconSet();
 
         _icon = new WinFormsNotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = _iconSet.Get(OrchestratorState.Idle),
             Text = "WhisperTray — Idle",
             Visible = true,
             ContextMenuStrip = BuildMenu(),
@@ -41,6 +42,7 @@ public sealed class TrayAppHost : INotificationService, IDisposable
     {
         InvokeOnDispatcher(() =>
         {
+            _icon.Icon = _iconSet.Get(state);
             _icon.Text = state switch
             {
                 OrchestratorState.Idle => "WhisperTray — Idle",
@@ -69,6 +71,7 @@ public sealed class TrayAppHost : INotificationService, IDisposable
         }
         _icon.Visible = false;
         _icon.Dispose();
+        _iconSet.Dispose();
         _disposed = true;
     }
 
