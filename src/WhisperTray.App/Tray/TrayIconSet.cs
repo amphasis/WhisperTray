@@ -59,6 +59,8 @@ public sealed class TrayIconSet : IDisposable
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
             g.Clear(Color.Transparent);
+            g.TranslateTransform(-4f, -4f);
+            g.ScaleTransform(1.2f, 1.2f);
             draw(g);
         }
         var hIcon = bmp.GetHicon();
@@ -72,19 +74,19 @@ public sealed class TrayIconSet : IDisposable
     /// <summary>Gray microphone silhouette — neutral idle state.</summary>
     private static void DrawIdle(Graphics g)
     {
-        DrawMicrophone(g, Color.FromArgb(210, 210, 210), Color.FromArgb(120, 120, 120));
+        DrawMicrophone(g, Color.White, Color.White);
     }
 
     /// <summary>Red microphone + solid REC dot in the corner.</summary>
     private static void DrawRecording(Graphics g)
     {
-        DrawMicrophone(g, Color.FromArgb(255, 90, 90), Color.FromArgb(190, 40, 40));
+        DrawMicrophone(g, Color.DarkRed, Color.DarkRed);
 
         // Pulsating "REC" dot — static here, but visually distinct from idle.
-        using var dot = new SolidBrush(Color.FromArgb(230, 40, 40));
-        g.FillEllipse(dot, 18, 2, 12, 12);
-        using var ring = new Pen(Color.FromArgb(255, 255, 255), 1.5f);
-        g.DrawEllipse(ring, 18, 2, 12, 12);
+        using var dot = new SolidBrush(Color.Red);
+        g.FillEllipse(dot, 16, 4, 12, 12);
+        using var ring = new Pen(Color.White, 1.5f);
+        g.DrawEllipse(ring, 16, 4, 12, 12);
     }
 
     /// <summary>Blue cloud with three animated-looking dots — "thinking".</summary>
