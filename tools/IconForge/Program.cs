@@ -193,27 +193,35 @@ static void DrawMicrophone(Graphics g, int size, Color body, Color outline, floa
 
     using (var pen = new Pen(outline, size * 0.018f))
     {
-        // Yoke (U-shape) that cradles the head. We draw the BOTTOM half of an ellipse
-        // (sweep 0..180), so its two visible endpoints — the "arm tops" — sit at the
-        // ellipse's vertical midline, and the lowest point of the U is at the rect's
-        // bottom edge.
+        // Yoke: an outline equidistant from the head capsule.
         //
-        // Geometry goal:
-        //   - arms reach up alongside the head to roughly mid-head height,
-        //   - bottom of the U sits just below the head,
-        //   - stem starts EXACTLY at the U's lowest point (no visual overlap).
-        var yokeWidth      = headW * 1.5f;
-        var armsTopY       = headY + headH * 0.55f;          // arms reach mid-head
-        var yokeBottomY    = headY + headH + headW * 0.45f;  // U bottom, just under head
-        var yokeHalfHeight = yokeBottomY - armsTopY;
-        var yokeRect = new RectangleF(
-            cx - yokeWidth / 2f,
-            armsTopY - yokeHalfHeight,                       // ellipse rect extends above
-            yokeWidth,
-            yokeHalfHeight * 2f);                            // only the bottom half is drawn
-        g.DrawArc(pen, yokeRect, 0, 180);
+        // The head is a stadium / pill: vertical sides between two semicircles of radius
+        // headW/2. The offset capsule at distance `gap` is the same shape with radius
+        // (headW/2 + gap), so its bottom-half outline becomes:
+        //   - two vertical arms parallel to the head's straight sides,
+        //   - a semicircle concentric with the head's bottom semicircle.
+        //
+        // That makes the gap between yoke and head identical at every point — what the
+        // user asked for.
+        var gap               = headW * 0.40f;
+        var yokeRadius        = headW / 2f + gap;
+        var headBottomCenterY = headY + headH - headW / 2f;     // center of head's bottom semicircle
+        var armsTopY          = headY + headW / 2f;             // top of head's straight side
+        var yokeBottomY       = headBottomCenterY + yokeRadius; // lowest point of the semicircle
 
-        // Stem starts at the U's bottom and runs straight down to the base bar.
+        // Two vertical arms.
+        g.DrawLine(pen, cx - yokeRadius, armsTopY, cx - yokeRadius, headBottomCenterY);
+        g.DrawLine(pen, cx + yokeRadius, armsTopY, cx + yokeRadius, headBottomCenterY);
+
+        // Bottom semicircle (concentric with the head's bottom semicircle, radius yokeRadius).
+        var arcRect = new RectangleF(
+            cx - yokeRadius,
+            headBottomCenterY - yokeRadius,
+            yokeRadius * 2f,
+            yokeRadius * 2f);
+        g.DrawArc(pen, arcRect, 0, 180);
+
+        // Stem starts exactly at the semicircle's bottom; base bar below.
         var stemBottomY = size * 0.90f;
         g.DrawLine(pen, cx, yokeBottomY, cx, stemBottomY);
         g.DrawLine(pen, cx - headW * 0.55f, stemBottomY, cx + headW * 0.55f, stemBottomY);
