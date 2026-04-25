@@ -169,9 +169,12 @@ static void DrawMicrophone(Graphics g, int size, Color body, Color outline, floa
     var headX = cx - headW / 2f;
     var headY = size * 0.18f;
 
+    // Stroke width for the capsule outline and the stand (2.5x the original ~1.8% line).
+    var strokeWidth = size * 0.045f;
+
     using (var head = RoundedRect(headX, headY, headW, headH, headW / 2f))
     using (var bodyBrush = new SolidBrush(body))
-    using (var outlinePen = new Pen(outline, size * 0.018f))
+    using (var outlinePen = new Pen(outline, strokeWidth))
     {
         g.FillPath(bodyBrush, head);
         g.DrawPath(outlinePen, head);
@@ -191,7 +194,7 @@ static void DrawMicrophone(Graphics g, int size, Color body, Color outline, floa
         return;
     }
 
-    using (var pen = new Pen(outline, size * 0.018f))
+    using (var pen = new Pen(outline, strokeWidth) { StartCap = LineCap.Round, EndCap = LineCap.Round })
     {
         // Yoke: an outline equidistant from the head capsule.
         //
