@@ -6,13 +6,17 @@ namespace WhisperTray.App.Tray;
 
 /// <summary>
 /// Owns a set of programmatically generated tray icons — one per orchestrator state.
-/// Icons are drawn into 32x32 ARGB bitmaps and converted via <c>Bitmap.GetHicon()</c>.
-/// The resulting <see cref="Icon"/> does not own its native handle, so we track
-/// each hIcon and call <c>DestroyIcon</c> on <see cref="Dispose"/> to avoid leaks.
+/// Glyphs render in a centred coordinate system: origin <c>(0, 0)</c> is the icon's
+/// visual centre, X right, Y down, usable canvas <c>[-16, +16]</c>. <see cref="Build"/>
+/// installs the centring translate so any rotate / scale / translate inside a glyph
+/// composes around the centre. <see cref="Icon"/> values returned by <c>Bitmap.GetHicon</c>
+/// do not own their native handle, so each hIcon is tracked and freed in <see cref="Dispose"/>.
 /// </summary>
 public sealed class TrayIconSet : IDisposable
 {
-    private const int IconSize = 32;
+    private const int IconSize = 40;
+    private const float Half = IconSize / 2f;
+    private const float Scale = 1.45f;
 
     private readonly Dictionary<OrchestratorState, Icon> _icons;
     private readonly List<nint> _nativeHandles = new();
@@ -59,9 +63,18 @@ public sealed class TrayIconSet : IDisposable
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
             g.Clear(Color.Transparent);
-            g.TranslateTransform(-4f, -4f);
-            g.ScaleTransform(1.2f, 1.2f);
-            draw(g);
+            g.TranslateTransform(Half, Half);
+            g.ScaleTransform(Scale, Scale);
+
+            var origin = g.Save();
+            try
+            {
+                draw(g);
+            }
+            finally
+            {
+                g.Restore(origin);
+            }
         }
         var hIcon = bmp.GetHicon();
         _nativeHandles.Add(hIcon);
@@ -69,81 +82,90 @@ public sealed class TrayIconSet : IDisposable
         return Icon.FromHandle(hIcon);
     }
 
-    // ---- glyphs ----
-
     /// <summary>White microphone silhouette — neutral idle state.</summary>
     private static void DrawIdle(Graphics g)
     {
         DrawMicrophone(g, Color.White, Color.White);
     }
 
-    /// <summary>Red microphone + solid REC dot in the corner.</summary>
+    /// <summary>Dark-red microphone with a bright "REC" bullet in the upper-right corner.</summary>
     private static void DrawRecording(Graphics g)
     {
-        DrawMicrophone(g, Color.DarkRed, Color.DarkRed);
-
-        // Pulsating "REC" dot — static here, but visually distinct from idle.
+        // REC bullet — translate to upper-right corner, then draw centred there.
         using var dot = new SolidBrush(Color.Red);
-        g.FillEllipse(dot, 16, 4, 12, 12);
-        using var ring = new Pen(Color.White, 1.5f);
-        g.DrawEllipse(ring, 16, 4, 12, 12);
+        using var ring = new Pen(Color.White, 2f);
+        var bullet = CenteredRect(16f, 16f);
+        g.FillEllipse(dot, bullet);
+        g.DrawEllipse(ring, bullet);
     }
 
-    /// <summary>Blue cloud with three animated-looking dots — "thinking".</summary>
+    /// <summary>Blue rounded card with three ellipsis dots — "thinking".</summary>
     private static void DrawTranscribing(Graphics g)
     {
-        // Rounded square background.
         using var fill = new SolidBrush(Color.FromArgb(70, 130, 220));
-        FillRoundedRect(g, fill, new RectangleF(2, 4, 28, 24), 6f);
-        using var border = new Pen(Color.FromArgb(40, 80, 160), 1.5f);
-        DrawRoundedRect(g, border, new RectangleF(2, 4, 28, 24), 6f);
+        using var border = new Pen(Color.FromArgb(40, 60, 160), 2f);
+        var card = CenteredRect(27f, 23f);
+        FillRoundedRect(g, fill, card, 8f);
+        DrawRoundedRect(g, border, card, 8f);
 
-        // Three ellipsis dots.
+        // Three ellipsis dots, evenly spaced along the X axis.
         using var dot = new SolidBrush(Color.White);
-        g.FillEllipse(dot, 7, 13, 5, 5);
-        g.FillEllipse(dot, 14, 13, 5, 5);
-        g.FillEllipse(dot, 21, 13, 5, 5);
+        const float dotSize = 6f;
+        const float spacing = 8f;
+
+        for (var i = -1; i <= 1; i++)
+        {
+            g.FillEllipse(dot, CenteredRectAt(i * spacing, 0f, dotSize, dotSize));
+        }
     }
 
-    /// <summary>Green right-arrow — text is flowing into the target window.</summary>
+    /// <summary>Green right-pointing arrow — text is flowing into the target window.</summary>
     private static void DrawInjecting(Graphics g)
     {
         using var fill = new SolidBrush(Color.FromArgb(80, 180, 100));
-        using var border = new Pen(Color.FromArgb(40, 120, 60), 1.5f);
+        using var border = new Pen(Color.FromArgb(40, 120, 60), 2f);
+        // Arrow points laid out around the origin: shaft from x=-13 to x=+1,
+        // arrowhead spans x=+1..+13 with apex on the X axis.
         var arrow = new[]
         {
-            new PointF(4, 11),
-            new PointF(18, 11),
-            new PointF(18, 5),
-            new PointF(30, 16),
-            new PointF(18, 27),
-            new PointF(18, 21),
-            new PointF(4, 21),
+            new PointF(-13f, -5f),
+            new PointF(  1f, -5f),
+            new PointF(  1f, -11f),
+            new PointF( 13f,   0f),
+            new PointF(  1f,  11f),
+            new PointF(  1f,   5f),
+            new PointF(-13f,   5f),
         };
         g.FillPolygon(fill, arrow);
         g.DrawPolygon(border, arrow);
     }
 
-    // ---- shared helpers ----
-
     private static void DrawMicrophone(Graphics g, Color body, Color outline)
     {
         using var fill = new SolidBrush(body);
-        using var pen = new Pen(outline, 1.5f);
+        using var pen = new Pen(outline, 2f);
 
-        // Capsule (mic head).
-        var head = new RectangleF(11, 4, 10, 17);
+        // Capsule (mic head) — centred on X, sits above the centre line.
+        var head = CenteredRectAt(0f, -4f, 10f, 17f);
         FillRoundedRect(g, fill, head, 5f);
         DrawRoundedRect(g, pen, head, 5f);
 
-        // Stand arc.
-        var arc = new RectangleF(7, 13, 18, 12);
+        // Stand arc — opens downward, just below the head.
+        var arc = CenteredRectAt(0f, 3f, 18f, 12f);
         g.DrawArc(pen, arc, 0, 180);
 
-        // Base line.
-        g.DrawLine(pen, 16, 25, 16, 29);
-        g.DrawLine(pen, 11, 29, 21, 29);
+        // Vertical post + base line at the bottom of the icon.
+        g.DrawLine(pen, 0f, 9f, 0f, 13f);
+        g.DrawLine(pen, -5f, 13f, 5f, 13f);
     }
+
+    /// <summary>Rectangle of <paramref name="width"/>×<paramref name="height"/> centred at the current origin.</summary>
+    private static RectangleF CenteredRect(float width, float height) =>
+        new(-width / 2f, -height / 2f, width, height);
+
+    /// <summary>Rectangle of <paramref name="width"/>×<paramref name="height"/> centred at <c>(cx, cy)</c>.</summary>
+    private static RectangleF CenteredRectAt(float cx, float cy, float width, float height) =>
+        new(cx - width / 2f, cy - height / 2f, width, height);
 
     private static void FillRoundedRect(Graphics g, Brush brush, RectangleF rect, float radius)
     {
@@ -169,4 +191,3 @@ public sealed class TrayIconSet : IDisposable
         return path;
     }
 }
-
