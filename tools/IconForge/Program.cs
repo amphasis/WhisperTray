@@ -161,7 +161,7 @@ static GraphicsPath RoundedRect(float x, float y, float w, float h, float r)
     return path;
 }
 
-static void DrawMicrophone(Graphics g, int size, Color body, Color outline, float scaleY = 1f)
+static void DrawMicrophone(Graphics g, int size, Color body, Color outline, float scaleY = 1f, bool withStand = true)
 {
     var cx = size / 2f;
     var headW = size * 0.30f;
@@ -186,18 +186,36 @@ static void DrawMicrophone(Graphics g, int size, Color body, Color outline, floa
         }
     }
 
+    if (!withStand)
+    {
+        return;
+    }
+
     using (var pen = new Pen(outline, size * 0.018f))
     {
-        var arcRect = new RectangleF(
-            cx - headW * 0.95f,
-            headY + headH - headW * 0.5f,
-            headW * 1.9f,
-            headW * 1.4f);
-        g.DrawArc(pen, arcRect, 0, 180);
+        // Yoke (U-shape) that cradles the head. We draw the BOTTOM half of an ellipse
+        // (sweep 0..180), so its two visible endpoints — the "arm tops" — sit at the
+        // ellipse's vertical midline, and the lowest point of the U is at the rect's
+        // bottom edge.
+        //
+        // Geometry goal:
+        //   - arms reach up alongside the head to roughly mid-head height,
+        //   - bottom of the U sits just below the head,
+        //   - stem starts EXACTLY at the U's lowest point (no visual overlap).
+        var yokeWidth      = headW * 1.5f;
+        var armsTopY       = headY + headH * 0.55f;          // arms reach mid-head
+        var yokeBottomY    = headY + headH + headW * 0.45f;  // U bottom, just under head
+        var yokeHalfHeight = yokeBottomY - armsTopY;
+        var yokeRect = new RectangleF(
+            cx - yokeWidth / 2f,
+            armsTopY - yokeHalfHeight,                       // ellipse rect extends above
+            yokeWidth,
+            yokeHalfHeight * 2f);                            // only the bottom half is drawn
+        g.DrawArc(pen, yokeRect, 0, 180);
 
-        var stemTopY = headY + headH + headW * 0.45f;
-        var stemBottomY = size * 0.86f;
-        g.DrawLine(pen, cx, stemTopY, cx, stemBottomY);
+        // Stem starts at the U's bottom and runs straight down to the base bar.
+        var stemBottomY = size * 0.90f;
+        g.DrawLine(pen, cx, yokeBottomY, cx, stemBottomY);
         g.DrawLine(pen, cx - headW * 0.55f, stemBottomY, cx + headW * 0.55f, stemBottomY);
     }
 }
@@ -270,7 +288,8 @@ static void DrawStudio(Graphics g, int size)
         }
     }
 
-    DrawMicrophone(g, size, Color.FromArgb(0, 230, 255), Color.FromArgb(0, 90, 130), scaleY: 0.85f);
+    // No stand on Studio — the equalizer bars below act as the visual "ground".
+    DrawMicrophone(g, size, Color.FromArgb(0, 230, 255), Color.FromArgb(0, 90, 130), scaleY: 0.85f, withStand: false);
 }
 
 // ---- Variant C: warm gradient + speech bubble + waveform ----
