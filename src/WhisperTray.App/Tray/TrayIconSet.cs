@@ -1,7 +1,6 @@
 using System.Drawing.Drawing2D;
 using WhisperTray.App.Adapters;
 using WhisperTray.Core.Orchestration;
-using WpfApplication = System.Windows.Application;
 
 namespace WhisperTray.App.Tray;
 
@@ -21,12 +20,9 @@ public sealed class TrayIconSet : IDisposable
 
     public TrayIconSet()
     {
-        // Idle uses the bundled AppIcon.ico — the same artwork that ships on the .exe and
-        // on every WPF window. Recording / Transcribing / Injecting keep their bespoke
-        // glyphs so the user can tell at a glance what stage the pipeline is in.
         _icons = new Dictionary<OrchestratorState, Icon>
         {
-            [OrchestratorState.Idle] = LoadFromPackUri("pack://application:,,,/Assets/AppIcon.ico"),
+            [OrchestratorState.Idle] = Build(DrawIdle),
             [OrchestratorState.Recording] = Build(DrawRecording),
             [OrchestratorState.Transcribing] = Build(DrawTranscribing),
             [OrchestratorState.Injecting] = Build(DrawInjecting),
@@ -73,18 +69,13 @@ public sealed class TrayIconSet : IDisposable
         return Icon.FromHandle(hIcon);
     }
 
-    private static Icon LoadFromPackUri(string uri)
-    {
-        var resource = WpfApplication.GetResourceStream(new Uri(uri, UriKind.Absolute))
-            ?? throw new InvalidOperationException($"Resource not found: {uri}");
-        using var stream = resource.Stream;
-        // An Icon constructed from a stream owns its handle, so disposing the Icon (in our
-        // Dispose) cleans it up. We deliberately keep it out of _nativeHandles so we don't
-        // double-free via DestroyIcon.
-        return new Icon(stream);
-    }
-
     // ---- glyphs ----
+
+    /// <summary>White microphone silhouette — neutral idle state.</summary>
+    private static void DrawIdle(Graphics g)
+    {
+        DrawMicrophone(g, Color.White, Color.White);
+    }
 
     /// <summary>Red microphone + solid REC dot in the corner.</summary>
     private static void DrawRecording(Graphics g)

@@ -17,6 +17,9 @@ artifacts/
 *.exe
 *.dll
 
+## Locally-generated publish profiles (contain machine-specific paths)
+**/Properties/PublishProfiles/
+
 ## Rider / VS Code
 .idea/
 .vscode/
