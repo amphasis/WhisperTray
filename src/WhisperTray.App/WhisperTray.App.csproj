@@ -16,9 +16,16 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <AssemblyName>WhisperTray</AssemblyName>
     <RootNamespace>WhisperTray.App</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Embedded as a resource so WPF can load it via pack URIs at runtime
+         (Window.Icon in SettingsWindow, NotifyIcon Idle state in TrayAppHost). -->
+    <Resource Include="Assets\AppIcon.ico" />
+  </ItemGroup>
 
   <!-- Single-file publish defaults. Activated by `dotnet publish -p:PublishSingleFile=true`.
        Framework-dependent: requires the .NET 8 Desktop Runtime on the target machine but
